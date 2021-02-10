@@ -1,0 +1,277 @@
+---
+title: <center><font size="6"><b>Acoustic analysis inquiry calls</b></font></center>
+subtitle: <center><font size="4"><b>Group flight coordination in Thyroptera</b></font></center>
+author: <center><font size="4"><a href="http://marceloarayasalas.weebly.com/">Marcelo Araya-Salas, PhD</a></font></center>
+date: <center>`r format(Sys.Date(), "%d-%m-%Y")`</center>
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      collapsed: no
+      smooth_scroll: no
+fontsize: 12pt 
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r packages, message = FALSE, warning = FALSE, echo = FALSE, eval = TRUE, include = FALSE}
+
+# unset github credentials
+Sys.unsetenv("GITHUB_PAT")
+
+#clean session
+rm(list = ls())
+
+# unload all non-based packages
+out <- sapply(paste('package:', names(sessionInfo()$otherPkgs), sep = ""), function(x) try(detach(x, unload = FALSE, character.only = TRUE), silent = T))
+
+
+## add 'developer/' to packages to be installed from github
+x <- c("devtools", "maRce10/warbleR", "bioacoustics", "pbapply", "Rraven", "parallel", "viridis", "RJSONIO", "ropensci/rfigshare")
+
+aa <- lapply(x, function(y) {
+  
+  # get pakage name
+  pkg <- strsplit(y, "/")[[1]]
+  pkg <- pkg[length(pkg)]
+  
+  # check if installed, if not then install 
+  if (!pkg %in% installed.packages()[,"Package"])  {
+
+      if (grepl("/", y))  devtools::install_github(y, force = TRUE) else
+    install.packages(y) 
+    }
+
+  # load package
+  try(require(pkg, character.only = T), silent = T)
+})
+
+```
+
+```{r functions, eval = TRUE, echo = FALSE}
+
+warbleR_options(wav.path = "~/Dropbox/Recordings/flight_coordination_Thyroptera/converted_sound_files_90_kHz/", wl = 300, parallel = parallel::detectCores() - 3, bp = "frange", fast = F, threshold = 15, ovlp = 20)
+
+```
+
+```{r mfcc cross-correlation detection}
+                                
+# get in whole file clips
+all_recs <- selection_table(whole.recs = TRUE)
+
+all_recs$sound.files <- as.character(all_recs$sound.files)
+
+# get template
+templ <- all_recs[all_recs$sound.files == "ch4MPI2020-01-19_15-03-57_0000057.wav", , drop = FALSE]
+
+
+templ$start[1] <- 96.587	
+templ$end[1] <- 96.638		
+# templ2$top.freq[1] <- 42.8226	
+# templ2$bottom.freq[1] <- 13.3548
+templ$selec <- 10001
+all_recs_temp <- rbind(templ, all_recs)
+
+# make compare matrix
+comp_mat <- cbind(paste(all_recs_temp$sound.files[1], all_recs_temp$selec[1], sep = "-"), all_recs$sound.files[-1])
+
+# make a sequence to do 100 files at the time
+sq <- c(seq(0, nrow(comp_mat), by = 100), nrow(comp_mat))
+
+for(i in 2:length(sq))
+{
+  xc.output <- xcorr(X = all_recs_temp, output = "list", 
+    compare.matrix = comp_mat[(sq[i-1] + 1):sq[i], ], pb = TRUE, bp = c(12, 42), type = "mfcc", na.rm = TRUE)
+
+  xc.output <- xcorr(X = all_recs_temp, output = "list", 
+    compare.matrix = comp_mat[(sq[i-1] + 1):sq[i], ], pb = TRUE, bp = c(12, 42), type = "spectrogram", na.rm = TRUE)
+  
+  saveRDS(xc.output, paste0("./output/detection_xcorr_", i - 1, ".RDS"))
+  
+}
+
+```
+
+```{r redo problematic ones}
+
+
+xcd_l <- list.files(path = "./output/", pattern = "xcorr_", full.names = TRUE)
+
+out <- lapply(xcd_l, function(i){
+  
+    xcd <- readRDS(i)
+    
+    return(as.character(unique(xcd$scores$sound.files)))
+    
+    }
+)
+
+done <- unlist(out)
+
+all_files <- list.files(path = .Options$warbleR$wav.path)
+
+not_done <- c(setdiff(all_files, gsub("-whole.file", "", done)), "ch4MPI2020-01-19_15-03-57_0000057.wav")
+
+length(not_done)
+
+# get in whole file clips
+all_recs <- split_wavs(only.sels = TRUE, sgmt.dur = 200000, files = not_done)
+
+
+# relabels sels to make it and regular selection table
+all_recs$selec <- 1:nrow(all_recs)
+
+# all_recs$sound.files <- all_recs$org.sound.files
+all_recs$org.sound.files <- NULL
+
+# check
+cs <- check_sels(all_recs)
+
+# get template
+templ <- all_recs[all_recs$sound.files == "ch4MPI2020-01-19_15-03-57_0000057.wav", ][1, ]
+
+templ$start[1] <- 96.587	
+templ$end[1] <- 96.638		
+# templ2$top.freq[1] <- 42.8226	
+# templ2$bottom.freq[1] <- 13.3548
+templ$selec <- 10001
+all_recs <- all_recs[all_recs$sound.files != "ch4MPI2020-01-19_15-03-57_0000057.wav", ]
+
+all_recs_temp <- rbind(templ, all_recs)
+
+comp_mat <- cbind(paste(all_recs_temp$sound.files[1], all_recs_temp$selec[1], sep = "-"), all_recs$sound.files)
+
+xc.output <- xcorr(X = all_recs_temp, output = "list", 
+    compare.matrix = comp_mat, pb = TRUE, bp = c(12, 42), type = "mfcc", na.rm = TRUE)
+
+xc.output$scores <- xc.output$scores[!is.na(xc.output$scores$score), ]
+
+
+if (nrow(xc.output$scores) > 0)
+  saveRDS(xc.output, paste0("./output/detection_xcorr_15.RDS")) else print("nothing worked")
+
+
+
+```
+
+
+```{r find peaks}
+
+# find peaks
+xcd_l <- list.files(path = "./output/", pattern = "xcorr_", full.names = TRUE)
+
+for(i in xcd_l){
+  
+    xcd <- readRDS(i)
+  
+  pks <- find_peaks(xc.output = xcd, pb = TRUE, cutoff = 0.45, output = "list")
+  
+  saveRDS(pks, paste0("./output/peaks_", gsub("./output//detection_xcorr_", "", i)))
+
+}
+
+
+```
+
+```{r plot spectrograms}
+
+pks_l <- list.files(path = "./output/", pattern = "peaks_", full.names = TRUE)
+
+pks <- lapply(pks_l, function(x){
+
+  pks <- readRDS(x)
+  pks$selection.table$bottom.freq <-  13.3548
+pks$selection.table$top.freq <-  42.8226
+
+lspec(pks, sxrow = 2, flim = c(10, 50), ovlp = 50, fast.spec = TRUE, it = "tiff", res = 60)
+
+move_imgs(from = .Options$warbleR$wav.path, to = "./data/processed/mfcc_detection", cut = TRUE, overwrite = TRUE)
+
+return(pks$selection.table)
+})
+
+peaks <- do.call(rbind, pks)
+
+write.csv(peaks, "./data/processed/peaks_xcorr_mfcc.csv", row.names = FALSE)
+
+Rraven::exp_raven(X = peaks, single.file = TRUE, sound.file.path = .Options$warbleR$wav.path, file.name = "./data/processed/peaks_xcorr_mfcc_for_raven.txt")
+  
+
+```
+
+```{r find overlaps}
+
+peaks <- read.csv("./data/processed/peaks_xcorr_mfcc.csv")
+
+head(peaks)
+
+peaks$event <- substr(peaks$sound.files, 4, 1000)
+
+
+ovlp_l <- lapply(unique(peaks$event), function(x){
+    
+  Y  <- peaks[peaks$event == x, ]
+  Y$org.sound.files <- Y$sound.files
+    Y$selec <- 1:nrow(Y)
+  Y$sound.files <- Y$event
+  
+  ov <- ovlp_sels(X = Y)
+  ov$sound.files <- Y$org.sound.files
+  
+  return(ov)
+})
+
+
+ovlps <- do.call(rbind, ovlp_l)
+
+
+write.csv(ovlps, "./data/processed/overlapping_peaks.csv", row.names = FALSE)
+
+Rraven::exp_raven(X = ovlps, single.file = TRUE, sound.file.path = .Options$warbleR$wav.path, file.name = "./data/processed/overlap_peaks_xcorr_mfcc_for_raven.txt")
+  
+
+# remove overlaps and keep only channel 1 no duplicates
+ovlp_l_nd <- lapply(unique(peaks$event), function(x){
+    
+  Y  <- peaks[peaks$event == x, ]
+  Y$org.sound.files <- Y$sound.files
+  Y$sound.files <- Y$event
+  Y$selec <- 1:nrow(Y)
+  
+  ov <- ovlp_sels(X = Y)
+  ov$sound.files <- sort(unique(Y$org.sound.files))[1]
+  
+  ov <- ov[order(ov$ovlp.sels, - ov$score), ]
+  
+  if (!all(is.na(ov$ovlp.sels)))
+  ov <- ov[!duplicated(ov$ovlp.sels), ]
+  
+  return(ov)
+})
+
+
+ovlps_nd <- do.call(rbind, ovlp_l_nd)
+
+
+write.csv(ovlps, "./data/processed/non_overlapping_peaks.csv", row.names = FALSE)
+
+Rraven::exp_raven(X = ovlps, single.file = TRUE, sound.file.path = .Options$warbleR$wav.path, file.name = "./data/processed/no_overlap_peaks_xcorr_mfcc_for_raven.txt")
+  
+
+```
+
+
+```{r plot spectrograms}
+
+
+nd_peaks <- read.csv("./data/processed/non_overlapping_peaks.csv")
+
+cs <- check_sels(nd_peaks)
+
+lspec(nd_peaks, sxrow = 2, flim = c(10, 50), ovlp = 50, fast.spec = TRUE, it = "tiff", res = 50)
+
+move_imgs(from = .Options$warbleR$wav.path, to = "./data/processed/non_duplicated_peaks", cut = TRUE, overwrite = TRUE)
+
+```
+

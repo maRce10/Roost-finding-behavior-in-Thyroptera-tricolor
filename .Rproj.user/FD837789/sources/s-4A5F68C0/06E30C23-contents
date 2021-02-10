@@ -1,0 +1,835 @@
+---
+title: <center><font size="6"><b>Detecting USVs</b></font></center>
+subtitle: <center><font size="4"><b>Rat ultrasonic vocalizations</b></font></center>
+author: <center><font size="4"><a href="http://marceloarayasalas.weebly.com/">Marcelo Araya-Salas, PhD</a></font></center>
+date: <center>`r format(Sys.Date(), "%d-%m-%Y")`</center>
+output:
+  html_document:
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      collapsed: no
+      smooth_scroll: no
+fontsize: 12pt 
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r packages, message = FALSE, warning = FALSE, echo = FALSE, eval = TRUE, include = FALSE}
+
+
+## add 'developer/' to packages to be installed from github
+x <- c("devtools", "maRce10/warbleR", "bioacoustics", "pbapply", "Rraven", "parallel", "viridis", "rfigshare", "svMisc", "readxl", "ranger")
+
+aa <- lapply(x, function(y) {
+  
+  # get pakage name
+  pkg <- strsplit(y, "/")[[1]]
+  pkg <- pkg[length(pkg)]
+  
+  # check if installed, if not then install 
+  if (!pkg %in% installed.packages()[,"Package"])  {
+
+      if (grepl("/", y))  devtools::install_github(y, force = TRUE) else
+    install.packages(y) 
+    }
+
+  # load package
+  try(require(pkg, character.only = T), silent = T)
+})
+
+```
+
+```{r functions and global parameters, eval = TRUE, echo = FALSE}
+
+warbleR_options(
+  wav.path = "~/Dropbox/Recordings/ratas_cin",
+  wl = 300,
+  parallel = parallel::detectCores() - 2,
+  bp = "frange",
+  fast = F,
+  threshold = 15,
+  ovlp = 20,
+  pb = FALSE
+)
+
+```
+
+```{r consolidate, eval = FALSE}
+
+cnsd <-
+  consolidate(path = "/home/dell/Documents/gdrive/2020 Actividad Marcelo/USVs audios/A_AMPH_15-45 _estres_parte2")
+
+fix_wavs(
+  samp.rate = 185,
+  mono = TRUE,
+  sox = TRUE,
+  path = "/home/dell/Documents/gdrive/2020 Actividad Marcelo/USVs audios/A_AMPH_15-45 _estres_parte2/consolidated_files/"
+)
+
+spl_sls <-
+  split_wavs(sgmt.dur = 85,
+             path = "/home/dell/Documents/gdrive/2020 Actividad Marcelo/USVs audios/A_AMPH_15-45 _estres_parte2/consolidated_files/converted_sound_files/")
+
+write.csv(spl_sls,
+          "./data/processed/split_wave_selections.csv",
+          row.names = FALSE)
+
+file.copy(from = file.path("/home/dell/Documents/gdrive/2020 Actividad Marcelo/USVs audios/A_AMPH_15-45 _estres_parte2/consolidated_files/converted_sound_files", spl_sls$sound.files), to = file.path("~/Dropbox/Recordings/ratas_cin", spl_sls$sound.files))
+
+```
+
+```{r full_spectros, eval = FALSE}
+
+full_spec(
+  flim = c(18, 90),
+  width = 35 / 1.5,
+  height = 20 / 1.5,
+  fast.spec = TRUE,
+  # pal = viridis,
+  res = 70,
+  sxrow = 2.5,
+  rows = 17,
+  ovlp = 10
+)
+
+move_imgs(from = .Options$warbleR$wav.path,
+          to = "./output/full_spectrograms",
+          overwrite = TRUE)
+
+```
+
+```{r autodetec all files, eval = FALSE}
+
+wvs <- list.files(path = .Options$warbleR$wav.path, pattern = ".wav", ignore.case = TRUE)
+
+wvs <- wvs[wvs %in% unique(annotations$sound.files)]
+
+
+# sq <- seq(1, length(wvs), 4)
+
+# if (sq[length(sq)] < length(wvs)) sq <- c(sq, length(wvs))
+pboptions(type  = "timer")
+# loop over groups of 4 files at the time
+out <- pblapply(wvs, cl = 18, function(i) {
+# for(i in wvs){
+  # print(i)
+  # print(round(i  / length(wvs), 2))
+  
+  # flist <- c(na.omit(wvs[i]))
+  flist <- i
+  
+  if (!file.exists(          
+    paste0(
+            "./data/processed/RDS_autodetec_2/",
+            gsub("\\.wav", "", paste(flist, collapse = "_")),
+            ".RDS"
+          ))){
+  suppressWarnings(ad <-
+    try(autodetec(
+      flist = flist,
+      threshold = 2,
+      ssmooth = 1400,
+      bp = c(42, 65),
+      parallel = 1,
+      maxdur = 0.15,
+      output = "list",
+      # hold.time = 0.05, 
+      # amp.outliers = c(0.025, 0.975), 
+      reduce.size = 1 / 1000
+    ), silent = TRUE))
+  
+  if (!is(ad, "try-error")) {
+  
+  ad$selection.table <- ad$selection.table[!is.na(ad$selection.table$start), ]
+  
+  saveRDS(ad,
+          paste0(
+            "./data/processed/RDS_autodetec_2/",
+            gsub("\\.wav", "", paste(flist, collapse = "_")),
+            ".RDS"
+          ))
+  
+  # ad <- readRDS("./data/processed/autodetec_v01.RDS")
+  
+  # try(
+  #   full_spec(
+  #   X = ad,
+  #   flim = c(45, 70),
+  #   width = 35 / 1.5,
+  #   height = 20 / 1.5,
+  #   fast.spec = TRUE,
+  #   parallel = 4,
+  #   res = 70,
+  #   sxrow = 2.5,
+  #   rows = 8,
+  #   ovlp = 10,
+  # ), 
+  # silent = TRUE)
+  # 
+  # move_imgs(
+  #   from = .Options$warbleR$wav.path,
+  #   to = "./output/detection_spectrograms_2/",
+  #   overwrite = TRUE
+  # )
+  
+  
+  }
+   # return("try to run")
+  }
+  
+   # progress(value = i, max.value = length(sq), init = (i == 1), progress.bar = TRUE, char = "+") 
+   # return(paste(flist, collapse = "_"))
+}
+)
+
+
+file.size(rdss <- list.files(path = "./data/processed/RDS_autodetec_2", full.names = TRUE))
+
+
+out <- lapply(X = rdss, function(x) try(readRDS(x)$selection.table, silent = TRUE))
+
+unique(sapply(out, class))
+
+
+# spectrograms(
+#   X = ad,
+#   flim = c(35, 70),
+#   fast.spec = TRUE,
+#   # pal = viridis,
+#   res = 70,
+#   dest.path = "./output/detection_spectrograms",
+#   mar = 0.01,
+#   inner.mar = rep(0, 4),
+#   picsize = 0.5
+# )
+
+```
+
+```{r read annotations}
+
+
+ann_files <- list.files("./data/raw/annotations", "LISTO.xlsx",  full.names = TRUE)   
+
+annotations_l <-  lapply(ann_files, function(x) {
+
+sheets <- excel_sheets(x)
+X <- read_excel(x,  sheet = if (any(grepl("corregido", sheets, igno = TRUE))) grep("corregido", sheets, igno = TRUE, value = TRUE) else  "Hoja1")
+
+# X <- names(X)
+X <- X[, c("start", "end", "type", "subtype")]
+
+X$excel_file <- basename(x)
+
+return(X)
+}
+)
+
+ann <- lapply(annotations_l, function(x) names(x)[1:8])
+
+annotations <- as.data.frame(do.call(rbind, annotations_l))
+
+str(annotations)
+
+annotations$start<- as.numeric(annotations$start)
+annotations$end <- as.numeric(annotations$end)
+
+annotations <- annotations[!is.na(annotations$start) & !is.na(annotations$end), ]
+
+annotations$org.sound.files <- gsub("A_AMPH_15-15_estres_parte2_AUDIO |LISTO.xlsx|A_AMPH_15-45_estres_parte2_AUDIO |LISTO.xlsx|A_AMPH_15-45_estres_parte2_AUDIO_", "", annotations$excel_file)
+
+annotations$org.sound.files <- gsub("\\_|\\.| ", "", annotations$org.sound.files)
+
+
+annotations$org.sound.files[annotations$org.sound.files  == "T000005"] <- "T0000005"
+annotations$org.sound.files[annotations$org.sound.files  == "T000006"] <- "T0000006"
+annotations$org.sound.files[annotations$org.sound.files  == "T000002"] <- "T0000002"
+annotations$org.sound.files[annotations$org.sound.files  == "T000004"] <- "T0000004"
+annotations$org.sound.files[annotations$org.sound.files  == "T000009"] <- "T0000009"
+annotations$org.sound.files[annotations$org.sound.files  == "T000013"] <- "T0000013"
+annotations$org.sound.files[annotations$org.sound.files  == "T000014"] <- "T0000014"
+
+
+
+annotations <- annotations[annotations$end - annotations$start < 2, ]
+sgmt.dur <- 85
+
+annotations_l <- lapply(unique(annotations$org.sound.files), function(x){
+  
+  Y <- annotations[annotations$org.sound.files == x, ]
+    
+  sq <- seq(from = 0, to = max(Y$end)  + 1, by = sgmt.dur)
+    
+  df <- data.frame(from = sq[-length(sq)], to =sq[-1])               
+    
+  df$segment_num <- 1:nrow(df)
+                 
+  df$sound.files <- paste0(Y$org.sound.files[1], "-", df$segment_num, ".wav")
+
+  Y$sound.files <- NA
+  
+  for (i in 1:nrow(Y))
+     try(Y$sound.files[i] <- df$sound.files[df$from <= Y$start[i] & df$to >= Y$end[i]], silent = TRUE)
+    
+  Y <- Y[!is.na(Y$sound.files), ]   
+  
+  Y$new.start <- sapply(1:nrow(Y), function(x) Y$start[x] - df$from[df$sound.files == Y$sound.files[x]])
+  
+  Y$new.end <- Y$new.start  + Y$end - Y$start
+
+  Y$start <- Y$end <- NULL
+  
+  names(Y)[ names(Y) %in% c("new.start", "new.end")] <- c("start", "end")
+  
+  return(Y)   
+})
+
+
+
+annotations <- as.data.frame(do.call(rbind, annotations_l))
+
+str(annotations)
+
+annotations$selec <- 1:nrow(annotations)
+cs <- check_sels(annotations)
+
+
+annotations <- annotations[cs$check.res == "OK", ]
+
+specreator(
+  X = annotations,
+  flim = c(18, 90),
+  fast.spec = TRUE,
+  # pal = viridis,
+    # parallel = 3,
+    res = 60,
+    ovlp = 0,
+    dest.path = "./output/annotation_spectrograms"
+    )
+
+
+
+ovp <- ovlp_sels(annotations)
+
+any(!is.na(ovp$ovlp.sels))
+
+ovlpsls <- ovp$selec[!is.na(ovp$ovlp.sels) & !duplicated(ovp$ovlp.sels)]
+
+annotations <- annotations[!annotations$selec %in% ovlpsls, ]
+
+write.csv(annotations, "./data/processed/preliminary_annotations.csv", row.names = FALSE)
+
+```
+
+
+```{r get envelopes for all sound files, eval=FALSE}
+
+wvs <- list.files(path = .Options$warbleR$wav.path, pattern = "wav$")
+
+wvs_l <- split(wvs, grep("wav$", unlist(sapply(wvs, strsplit, "-")), value = TRUE, invert = TRUE))
+
+
+out <- lapply(1:length(wvs_l), function(x){
+print(x / length(wvs_l))
+  
+envs <- autodetec(ssmooth = 100, output = "list", bp = c(42, 65), thinning = 1/100, flist = wvs_l[[x]])
+
+saveRDS(envs, paste0("./data/processed/autodetec_opt/envelopes_from_autodetec_all_sound_files", names(wvs_l)[x], ".RDS"))
+
+  })
+
+
+```
+
+
+```{r optimize detections part 1, eval = FALSE}
+
+annotations <- read.csv("./data/processed/preliminary_annotations.csv", stringsAsFactors = FALSE)
+
+cs <- checksels(annotations)
+
+tb <- table(annotations$org.sound.files)
+
+# sub_ann <- annotations[annotations$org.sound.files %in% names(tb)[tb > 100], ]
+sub_ann <- annotations[annotations$org.sound.files %in% names(tb)[tb > 100], ]
+
+envs <- autodetec(ssmooth = 300, output = "list", bp = c(42, 65), thinning = 1/1000, flist = unique(sub_ann$sound.files), pb = TRUE, para = 10)
+
+saveRDS(envs, paste0("./data/processed/autodetec_opt/envelopes_from_autodetec_all_sound_files_", paste(unique(sub_ann$org.sound.files), collapse = "-"), ".RDS"))
+
+
+envs100 <- autodetec(ssmooth = 300, output = "list", bp = c(42, 65), thinning = 1/100, flist = unique(sub_ann$sound.files), pb = TRUE, para = 5)
+
+saveRDS(envs100, paste0("./data/processed/autodetec_opt/envelopes_from_autodetec_all_sound_files_", paste(unique(sub_ann$org.sound.files), collapse = "-"), "100th.RDS"))
+
+```
+
+```{r optimize detections part 1, eval = FALSE}
+
+annotations <- read.csv("./data/processed/preliminary_annotations.csv", stringsAsFactors = FALSE)
+
+cs <- checksels(annotations)
+
+tb <- table(annotations$org.sound.files)
+
+# sub_ann <- annotations[annotations$org.sound.files %in% names(tb)[tb > 100], ]
+sub_ann <- annotations[annotations$org.sound.files %in% names(tb)[tb > 100], ]
+
+# read envelopes
+envs <- readRDS("./data/processed/autodetec_opt/envelopes_from_autodetec_all_sound_files_T0000005-T0000013-T0000015.RDS")
+
+# opt_ad_bs <- optimize_autodetec(X = sub_ann, Y = envs, threshold = seq(1, 10, 1), bp = c(42, 65), hold.time = seq(0, 0.01, 0.001), power = seq(1, 2, 0.1), by.sound.file = TRUE)
+
+
+opt_ad <- optimize_autodetec(X = sub_ann, Y = envs, threshold = seq(1, 10, 1), bp = c(42, 65), hold.time = seq(0, 0.003, 0.001), power = seq(1, 1.2, 0.1), by.sound.file = FALSE, ssmooth = seq(600, 2000, 200))
+
+
+envs100 <- readRDS("./data/processed/autodetec_opt/envelopes_from_autodetec_all_sound_files_T0000005-T0000013-T0000015100th.RDS")
+
+opt_ad_100 <- optimize_autodetec(X = sub_ann, Y = envs100, threshold = seq(1, 10, 1), bp = c(42, 65), hold.time = seq(0, 0.003, 0.001), power = seq(1, 1.2, 0.1), by.sound.file = FALSE, ssmooth = seq(600, 2000, 200))
+
+
+opt_res <- list(opt_ad_bs = opt_ad_bs, opt_ad = opt_ad, opt_ad_100 = opt_ad_100)
+
+saveRDS(opt_res, "./data/processed/optimization_results_dec-21-2020.RDS") 
+
+
+opt_res <- readRDS("./data/processed/optimization_results_dec-21-2020.RDS") 
+
+
+View(opt_res$opt_ad)
+
+
+```
+
+```{r}
+
+annotations <- read.csv("./data/processed/preliminary_annotations.csv", stringsAsFactors = FALSE)
+
+library(Rraven)
+
+exp_raven(X = annotations, sound.file.path = "~/Dropbox/Recordings/ratas_cin/")
+
+
+```
+
+
+```{r explore optimization results, eval = FALSE}
+
+opt_res <- readRDS("./data/processed/optimization_results_dec-21-2020.RDS") 
+
+
+opt <- opt_res$opt_ad
+
+opt <- opt[opt$sensitivity > 0.8, ]
+
+nrow(opt)
+summary(opt)
+
+
+opt_bs <- opt_res$opt_ad_bs
+
+opt_bs <- opt_bs[opt_bs$sensitivity > 0.99 & opt_bs$proportional.time.true.positives < 1.1 & opt_bs$proportional.time.true.positives > 0.9, ]
+
+nrow(opt_bs)
+
+summary(opt_bs)
+
+```
+
+
+```{r find detections}
+
+annotations <- read.csv("./data/processed/preliminary_annotations.csv", stringsAsFactors = FALSE)
+
+
+pboptions(type  = "timer")
+
+max_threshold <- 30
+# 
+# out <- pblapply(unique(annotations$sound.files), cl = 20, function(x){
+#   
+#     Y <- annotations[annotations$sound.files == x, ]
+# 
+#     Y$ann_type <- "manual"
+#     
+#     W <- readRDS(paste0("./data/processed/RDS_autodetec_2/", gsub("wav", "", x), "RDS"))
+# 
+#     
+#     propr <- sapply(W$parameters$threshold:max_threshold, function(e){
+#       
+#     ad <- autodetec(W, threshold = e, bp = c(42, 65))
+#     
+#     
+#     if (nrow(ad) > 0){
+#     ad$ann_type <- "automatic"
+#     
+#     Z <- rbind(Y[, c("sound.files", "selec", "start", "end", "ann_type")], ad[, c("sound.files", "selec", "start", "end", "ann_type")])
+#     
+#     Z$duration <- Z$end - Z$start
+#     
+#     ovs <- ovlp_sels(Z)
+#     
+#     ovs <- ovs[!is.na(ovs$ovlp.sels), ]
+#     
+#     dur_ovps <- sum(ovs$duration[ovs$ann_type == "automatic"]) / sum(ovs$duration[ovs$ann_type == "manual"])
+#     } else dur_ovps <- 0
+#     
+#      return(dur_ovps) 
+#     })
+#     
+#     df <- data.frame(sound.files = x, thresholds = W$parameters$threshold:max_threshold, propr)
+#     
+#     
+#     ad <- autodetec(W, threshold = df$thresholds[which.min(abs(df$propr - 1))] - 3, bp = c(42, 65))
+# 
+#     return(ad)
+#     })
+
+ann_range <- range(annotations$end - annotations$start)
+
+out <- pblapply(unique(annotations$sound.files), cl = 20, function(x){
+  
+    Y <- annotations[annotations$sound.files == x, ]
+
+    Y$ann_type <- "manual"
+    
+    W <- readRDS(paste0("./data/processed/RDS_autodetec_2/", gsub("wav", "", x), "RDS"))
+
+    
+    propr <- sapply(W$parameters$threshold:max_threshold, function(e){
+      
+    ad <- autodetec(W, threshold = e, bp = c(42, 65))
+    
+    
+    if (nrow(ad) > 0){
+    ad$ann_type <- "automatic"
+    
+    Z <- rbind(Y[, c("sound.files", "selec", "start", "end", "ann_type")], ad[, c("sound.files", "selec", "start", "end", "ann_type")])
+    
+    Z$duration <- Z$end - Z$start
+    
+    ovs <- ovlp_sels(Z)
+    
+    ovs <- ovs[!is.na(ovs$ovlp.sels), ]
+    
+    ovs <- ovs[ovs$duration > 0.0025 & ovs$duration < 0.2, ]
+    
+    dur_ovps <- sum(ovs$duration[ovs$ann_type == "automatic"]) / nrow(Y)
+    } else dur_ovps <- 0
+    
+     return(dur_ovps) 
+    })
+    
+    df <- data.frame(sound.files = x, thresholds = W$parameters$threshold:max_threshold, propr)
+    
+    
+    ad <- autodetec(W, threshold = df$thresholds[which.max(df$propr)] , bp = c(42, 65))
+
+    return(ad)
+    })
+
+
+out <- out[sapply(out, class) == "data.frame"]
+
+dat <- do.call(rbind, out)
+
+nrow(dat)
+
+
+specreator(
+  X = dat,
+  flim = c(18, 90),
+  fast.spec = TRUE,
+  # pal = viridis,
+    parallel = 20,
+    res = 60,
+    ovlp = 0,
+    dest.path = "./output/detection_spectrograms_2"
+    )
+
+# 
+# aggregate(propr ~ thresholds, data = dat, mean)
+
+dat 
+write.csv(dat, "./data/processed/detections_preliminary.csv", row.names = FALSE)
+
+```
+
+```{r random forest}
+dets <- read.csv("./data/processed/detections_preliminary.csv", stringsAsFactors = FALSE)
+
+
+filt_ind <- filter_sels(X = dets, path = "./output/detection_spectrograms_2/no_calls", index = TRUE)
+
+dets$class <- "no_call"
+
+dets$class[filt_ind] <- "call"
+
+dets <- dets[dets$duration < 10, ]
+
+sp <- specan(dets, bp = c(42, 65), pb = TRUE, parallel = 20, fast = TRUE)
+mfcc <- mfcc_stats(dets, pb = TRUE, bp = c(42, 65), parallel = 20)
+
+
+
+dat <- data.frame(sp, mfcc[, -c(1, 2)])
+
+anyNA(dat)
+
+dat$class <- dets$class
+write.csv(dat, "./data/processed/acoustic_parameters_preliminary.csv", row.names = FALSE)
+
+```
+
+
+```{r random forest}
+rfm <- ranger(class ~ ., data = dat[, -c(1, 2)], num.trees = 10000)
+
+rfm
+
+```
+
+
+```{r testing}
+
+
+# st <- data.frame(sound.files =  "T0000002-3.wav", selec = 1, start = 25.7, end = 28.16)
+
+
+# cut_sels(st)
+
+
+# if (TRUE) {
+   threshold = 7
+  
+  source('~/Dropbox/R_package_testing/warbleR/warbleR/R/autodetec.R')
+  
+  tst <-
+    autodetec(
+      flist = "T0000001-9.wav",
+      threshold = 7,
+      reduce.size = NULL,
+      ssmooth = 1400,
+      bp = c(42, 65),
+      parallel = 3,
+      # maxdur = 0.15,
+      output = "list",
+      path = "./test"
+      )
+
+    tst2 <-
+    autodetec(X = tst1, 
+      threshold = 7,
+        amp.outliers = c(0.025, 0.975),
+      reduce.size = 1/1000,
+      ssmooth = 0,
+      bp = c(42, 65),
+      hold.time = 0.05,
+      parallel = 3,
+      maxdur = 0.15,
+      output = "list",
+      path = "./test",
+      bottom.line = 95
+      )
+    
+tst2$bottom.line.thresholds
+  
+  full_spec(
+  X = tst2,
+  flim = c(18, 90),
+  width = 35 / 1.5,
+  height = 20 / 1.5,
+  fast.spec = TRUE,
+  # pal = viridis,
+    parallel = 3,
+    res = 60,
+    sxrow = 2.5,
+    rows = 8,
+    ovlp = 0,
+    path = "./test"
+    )
+  
+
+Wmove_imgs(from = .Options$warbleR$wav.path,
+          to = "./output/detection_spectrograms",
+          overwrite = TRUE)  
+
+  
+  
+
+new <-
+    autodetec(
+      threshold = threshold,
+      interpolate = 1/1000,    
+      ssmooth = 1400,
+      bp = c(42, 65),
+      parallel = 1,
+      # maxdur = 0.15,
+      output = "list",
+      path = "./test",
+      hold.time = 0.14
+      )
+
+
+new$selection.table2 <- hold_time(old$selection.table, hold.time = 0.17)
+
+
+
+
+
+par(mfrow = 2:1, mar = rep(1.7, 4))
+plot(x = range(c(old$selection.table$start, old$selection.table$end, new$selection.table$start, new$selection.table$end)), y = 0:1, col = "white", main = nrow(old$selection.table))
+abline(v = c(old$selection.table$start, old$selection.table$end), col = "black")
+lines(x = old[[2]]$time, y = old[[2]]$amplitude)
+abline(h = threshold / 100, col = "red", lty = 2)
+
+plot(x = range(c(old$selection.table$start, old$selection.table$end, new$selection.table$start, new$selection.table$end)), y = 0:1, col = "white", main = nrow(new$selection.table))
+
+
+abline(v = c(new$selection.table$start, new$selection.table$end), col = "blue")
+abline(v = c(new$selection.table2$start, new$selection.table2$end), col = "red", lwd = 2)
+lines(x = new[[2]]$time, y = new[[2]]$amplitude)
+abline(h = threshold / 100, col = "red", lty = 2)
+
+  
+# par(mfrow = c(2, 1))
+# plot(ad$envelopes$time, ad$envelopes$amplitude, type = "l")
+# plot(ad2$envelopes$time, ad2$envelopes$amplitude, type = "l")
+# 
+# print(rbind(ad = sapply(ad, nrow), ad2 = sapply(ad2, nrow)))
+}
+
+nrow(new$envelopes)
+nrow(old$envelopes)
+
+ad1$selection.table[1:6, ]
+
+ad$selection.table[1:6, ]
+
+ad2$selection.table[1:6, ]
+
+
+  full_spec(
+    X = ad,
+    flim = c(45, 70),
+    width = 35 / 1.5,
+    height = 20 / 1.5,
+    fast.spec = TRUE,
+    parallel = 1,
+    res = 70,
+    sxrow = 1,
+    rows = 3,
+    ovlp = 10,
+    path = "./test"
+  )
+  
+    
+  
+ad2 <- ad
+ad2$envelopes <- reset_autodetec(ad2$envelopes, fraction = 1/ 500, parallel = 1, outliers = c(0.05, 0.90))
+
+nrow(ad2$envelopes) / max(ad2$envelopes$time)
+nrow(ad$envelopes)
+
+
+  full_spec(
+    X = ad2,
+    flim = c(45, 70),
+    width = 35 / 1.5,
+    height = 20 / 1.5,
+    fast.spec = TRUE,
+    parallel = 1,
+    res = 70,
+    sxrow = 1,
+    rows = 3,
+    ovlp = 10,
+    path = "./test"
+  )
+
+
+```
+
+
+```{r new trhesholds test, eval = FALSE}
+
+rdss <- list.files(path = "./data/processed/RDS_autodetec", full.names = TRUE)
+
+file <- "T0000001-1"
+
+file_grep <- paste0(file, c(".RDS", "_"))
+
+(rds <- grep(paste(file_grep, collapse = "|"), rdss, value = TRUE))
+
+detec_rds <- readRDS(rds)
+
+envs <- detec_rds$envelopes
+
+
+shr_envs <- reset_autodetec(envs, fraction = 1/ 20, parallel = 4)
+nrow(shr_envs) / nrow(envs)
+
+rds2 <- detec_rds
+rds2$envelopes <- shr_envs
+saveRDS(rds2, "./data/processed/RDS_autodetec/delete4.RDS")
+
+
+
+sub_envs <- shr_envs[grep(paste0(file, ".wav"), shr_envs$sound.files), ]
+
+nrow(sub_envs) / max(sub_envs$time)
+
+str(sub_envs)
+
+range(sub_envs$amplitude)
+
+
+
+summary(sub_envs$amplitude)
+
+quan_2.5 <- quantile(sub_envs$amplitude, 0.025)
+
+sub_envs$amplitude[sub_envs$amplitude < quan_2.5] <- quan_2.5
+
+sub_envs$amplitude <- (sub_envs$amplitude - min(sub_envs$amplitude)) / max(sub_envs$amplitude - min(sub_envs$amplitude))
+
+
+plot(sub_envs[, c("time", "amplitude")], type = "l", lwd = 0.5)
+
+plot(density(sub_envs$amplitude))
+
+ad$selection.table  <- hold_time(X = ad$selection.table, hold.time = 0.05)  
+
+full_spec(
+  X = ad,
+  flim = c(45, 70),
+  width = 35 / 1.5,
+  height = 20 / 1.5,
+  fast.spec = TRUE,
+  # pal = viridis,
+  res = 70,
+  sxrow = 2.5,
+  rows = 8,
+  ovlp = 10, 
+)
+
+
+
+move_imgs(from = .Options$warbleR$wav.path,
+          to = "./output/detection_spectrograms",
+          overwrite = TRUE)
+
+
+# spectrograms(
+#   X = ad,
+#   flim = c(35, 70),
+#   fast.spec = TRUE,
+#   # pal = viridis,
+#   res = 70,
+#   dest.path = "./output/detection_spectrograms",
+#   mar = 0.01,
+#   inner.mar = rep(0, 4),
+#   picsize = 0.5
+# )
+
+```

@@ -1,0 +1,69 @@
+BTdata                  Blue Tit Data for a Quantitative Genetic
+                        Experiment
+BTped                   Blue Tit Pedigree
+Ddivergence             d-divergence
+Dexpressions            List of unevaluated expressions for (mixed)
+                        partial derivatives of fitness with respect to
+                        linear predictors.
+Dtensor                 Tensor of (mixed) partial derivatives
+KPPM                    Kronecker Product Permutation Matrix
+MCMCglmm                Multivariate Generalised Linear Mixed Models
+MCMCglmm-package        Multivariate Generalised Linear Mixed Models
+PlodiaPO                Phenoloxidase measures on caterpillars of the
+                        Indian meal moth.
+PlodiaR                 Resistance of Indian meal moth caterpillars to
+                        the granulosis virus PiGV.
+PlodiaRB                Resistance (as a binary trait) of Indian meal
+                        moth caterpillars to the granulosis virus PiGV.
+Ptensor                 Tensor of Sample (Mixed) Central Moments
+SShorns                 Horn type and genders of Soay Sheep
+Tri2M                   Lower/Upper Triangle Elements of a Matrix
+at.level                Incidence Matrix of Levels within a Factor
+at.set                  Incidence Matrix of Combined Levels within a
+                        Factor
+buildV                  Forms expected (co)variances for GLMMs fitted
+                        with MCMCglmm
+commutation             Commutation Matrix
+dcmvnorm                Density of a (conditional) multivariate normal
+                        variate
+evalDtensor             Evaluates a list of (mixed) partial derivatives
+gelman.prior            Prior Covariance Matrix for Fixed Effects.
+inverseA                Inverse Relatedness Matrix and Phylogenetic
+                        Covariance Matrix
+knorm                   (Mixed) Central Moments of a Multivariate
+                        Normal Distribution
+krzanowski.test         Krzanowski's Comparison of Subspaces
+kunif                   Central Moments of a Uniform Distribution
+list2bdiag              Forms the direct sum from a list of matrices
+me                      Design Matrix for Measurement Error Model
+mult.memb               Design Matrices for Multiple Membership Models
+path                    Design Matrix for Path Analyses
+pkk                     Probability that all multinomial categories
+                        have a non-zero count.
+plot.MCMCglmm           Plots MCMC chains from MCMCglmm using plot.mcmc
+plotsubspace            Plots covariance matrices
+posterior.ante          Posterior distribution of ante-dependence
+                        parameters
+posterior.cor           Transforms posterior distribution of
+                        covariances into correlations
+posterior.evals         Posterior distribution of eigenvalues
+posterior.inverse       Posterior distribution of matrix inverse
+posterior.mode          Estimates the marginal parameter modes using
+                        kernel density estimation
+predict.MCMCglmm        Predict method for GLMMs fitted with MCMCglmm
+prunePed                Pedigree pruning
+rIW                     Random Generation from the Conditional Inverse
+                        Wishart Distribution
+rbv                     Random Generation of MVN Breeding Values and
+                        Phylogenetic Effects
+residuals.MCMCglmm      Residuals form a GLMM fitted with MCMCglmm
+rtcmvnorm               Random Generation from a Truncated Conditional
+                        Normal Distribution
+rtnorm                  Random Generation from a Truncated Normal
+                        Distribution
+simulate.MCMCglmm       Simulate method for GLMMs fitted with MCMCglmm
+sir                     Design Matrix for Simultaneous and Recursive
+                        Relationships between Responses
+sm2asreml               Converts sparseMatrix to asreml's giv format
+spl                     Orthogonal Spline Design Matrix
+summary.MCMCglmm        Summarising GLMM Fits from MCMCglmm

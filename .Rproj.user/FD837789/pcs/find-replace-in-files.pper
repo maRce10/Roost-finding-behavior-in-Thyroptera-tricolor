@@ -1,0 +1,13 @@
+{
+    "dialog-state": {
+        "query": "MCMglmm(",
+        "path": "~/Dropbox/Projects/roost_finding_behavior_thyroptera",
+        "regex": false,
+        "caseSensitive": false,
+        "filePatterns": [],
+        "excludeFilePatterns": [],
+        "resultsCount": 0,
+        "errorCount": 0,
+        "replaceErrors": ""
+    }
+}
