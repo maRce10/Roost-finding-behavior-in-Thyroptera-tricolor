@@ -1,12 +1,12 @@
 Roost finding behavior in Thyroptera tricolor
 ================
-Marcelo Araya Salas
+Marcelo Araya Salas, Miriam Gioiosa and Gloriana Chaverri
 
 <!-- Short Description  -->
 
 Sensory inputs and roost finding behavior of Spix’s disc-winged bats
 
-*Updated on 2021-02-10 16:18:47*
+*Updated on 2021-03-03 14:17:10*
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
@@ -29,10 +29,12 @@ tricolor*)
 
 ## In progress
 
-  - 
+  - Writting intro, methods and results
+
 ## To-do list
 
-  - 
+  - Writting discussion
+
 ## Status
 
 Project is: *in progress*

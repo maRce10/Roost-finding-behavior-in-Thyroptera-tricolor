@@ -1,11 +1,11 @@
 ---
 title: <center><font size="6"><b>Sensory input and roost finding in Spix's disc-winged bats</b></font></center>
 subtitle: <center><font size="4"><b>Acoustic and statistical analysis</b></font></center>
-author: <center><font size="4"> Miriam XXX, Marcelo Araya-Salas, Gloriana Chaverri</font></center>
+author: <center><font size="4"> Miriam Gioiosa, Marcelo Araya-Salas, Gloriana Chaverri</font></center>
 date: <center>`r format(Sys.Date(), "%d-%m-%Y")`</center>
 output:
   html_document:
-    code_folding: show
+    code_folding: hide
     df_print: kable
     toc: yes
     toc_depth: 3
@@ -57,6 +57,89 @@ levels(dat$sensory_input_categ) <- list("Control" = "control-day", "Sound & visi
 
 
 ## Statistical analysis
+
+### Sample sizes
+
+Experiments per date:
+
+```{r, eval = TRUE}
+# Dates
+table(dat$date)
+
+```
+
+Test per individual:
+
+```{r, eval = TRUE}
+
+table(dat$individual)
+
+```
+
+Number of individuals by number of tests:
+
+```{r, eval = TRUE}
+
+table(table(dat$individual))
+
+```
+
+Experiments per individual:
+
+```{r, eval = TRUE}
+
+table(dat$individual[!duplicated(paste(dat$sensory_input_categ, dat$individual))])
+
+```
+
+Number of individuals by number of experiments:
+
+```{r, eval = TRUE}
+
+table(table(dat$individual[!duplicated(paste(dat$sensory_input_categ, dat$individual))]))
+
+```
+
+Tests per treatment:
+
+```{r, eval = TRUE}
+
+table(dat$treatment, dat$time_of_the_day)
+
+```
+
+Experiments per treatment:
+
+```{r, eval = TRUE}
+
+table(dat$treatment[!duplicated(paste(dat$sensory_input_categ, dat$individual))], dat$time_of_the_day[!duplicated(paste(dat$sensory_input_categ, dat$individual))])
+
+```
+
+&nbsp;
+
+* `r length(unique(dat$individual))` individuals were tested
+
+* The `r table(table(dat$individual[!duplicated(paste(dat$sensory_input_categ, dat$individual))]))[1]` individuals with only 1 treatment were excluded so the final sample size `r  table(table(dat$individual[!duplicated(paste(dat$sensory_input_categ, dat$individual))]))[1]`
+
+```{r}
+
+# exclude individuals with 1 experiment
+
+tab <- table(dat$individual[!duplicated(paste(dat$sensory_input_categ, dat$individual))])
+
+dat <- dat[!dat$individual %in%  names(tab)[tab == 1], ]
+
+```
+
+
+* The mean number of tests per individual (after excluding those with 1 treatment) was `r round(mean(table(dat$individual)), 2)` (range = `r round(range(table(dat$individual)), 2)`)
+
+* The mean number of experimental treatments in which each individual was tested  (after excluding those with 1 treatment) was `r  round(length(unique(paste(dat$sensory_input_categ, dat$individual))) / length(unique(dat$individual)), 2)`
+
+
+
+&nbsp;
 
 ### Sensory input as categorial
 
@@ -112,9 +195,26 @@ models_categorial[, !colnames(models_categorial) %in% "family"]
 As the model including sensory input as category provides a better fit, we proceed to evaluate it: 
 ```{r, eval=TRUE, echo=TRUE}
 
-summary(replic_models_categorical$`time_to_enter ~ sensory_input_categ`[[1]])
+md <- replic_models_categorical$`time_to_enter ~ sensory_input_categ`[[1]]
+summary(md)
 
-```
+colnames(md$Sol) <- gsub("sensory_input_categ", "", colnames(md$Sol))
+
+# colnames(md$Sol)
+
+# stack posteriors
+Y <- stack(as.data.frame(md$Sol)[, -1])
+
+# plot posteriors
+ggplot(Y, aes(x=values)) + 
+  geom_vline(xintercept = 0, col = "red", lty = 2) +
+  geom_density() + 
+  labs(y = "Density", x = "Posterior") +
+  facet_wrap(~ ind, ncol = 2) +
+  theme_classic(base_size = 24)
+
+
+  ```
 
 The following plot help to visualized the pattern inferred by the model:
 
@@ -142,12 +242,12 @@ ggplot(agg_dat, aes(x = sensory_input_categ, y = time_to_enter)) +
 
 ### Sensory input as ordinal
 
-We also compared two models related to the number of sensory inputs available (as an ordinal variable). The first model represents a scenario in which the time to enter the roost decreases as a function of addition of sensory inputs (no inputs = 1, only visual or only vocal = 1, visual and vocal  = 2). The second model represents an alternative scenario in which any sensory input is equally good for decreasing roost entering time (is treated as a binary ordinal variable: 0 = lessen input, 1 = any input). An intercept-only (null) model was also included in the analysis. So four models were tested: 
+We also compared two models related to the number of sensory inputs available (as an ordinal variable). The first model represents a scenario in which the time to enter the roost decreases as a function of addition of sensory inputs (no inputs = 1, only visual or only vocal = 1, visual and vocal  = 2). The second model represents an alternative scenario in which any sensory input is equally good for decreasing roost entering time (is treated as a binary ordinal variable: 0 = lessen input, 1 = any input). An intercept-only (null) model was also included in the analysis. So three models were tested: 
 
 1. Sensory input as an ordinal variable (the sum of available sensory inputs):
 $$Time\ to\ enter\ roost \sim  + ordinal\ input + (1 | individual)$$
-2. Sensory input as an binary ordinal variable as predictor:
-$$Time\ to\ enter\ roost \sim  + ordinal\ presence/absence\ input + (1 | individual)$$
+2. Sensory input as an binary variable as predictor:
+$$Time\ to\ enter\ roost \sim  + presence/absence\ input + (1 | individual)$$
 
 3. Null model with no predictor:
 $$Time\ to\ enter\ roost \sim 1 + (1 | individual)$$
@@ -157,15 +257,22 @@ Again, each model is replicated three times with starting values sampled from a 
 ```{r stats MCMCglmm 3 times ordinal, eval = FALSE, echo = TRUE}
 
 # create a variable with treatment as the sum of sensory inputs involved
-dat$sensory_input_sum <- 2
-dat$sensory_input_sum[dat$sensory_input_categ %in% c("Sound", "Vision")] <- 1
-dat$sensory_input_sum[dat$sensory_input_categ == "Lessen input"] <- 0
+dat$sensory_input_sum <- dat$sensory_input_categ
+
+levels(dat$sensory_input_sum)[levels(dat$sensory_input_sum) %in% c("Vision", "Sound")] <- "1 modality"
+levels(dat$sensory_input_sum)[levels(dat$sensory_input_sum) %in% c("Control", "Sound & vision")] <- "2 modalities"
+dat$sensory_input_sum <- factor(dat$sensory_input_sum, levels = c("Lessen input", "1 modality", "2 modalities"))
+
+# order levels
+dat$sensory_input_sum <- ordered(dat$sensory_input_sum)
 
 # create a variable with treatment binary input
-dat$sensory_input_binary <- 1
-dat$sensory_input_binary[dat$sensory_input_categ == "Lessen input"] <- 0
+dat$sensory_input_binary <- "sensory input"
+dat$sensory_input_binary[dat$sensory_input_categ == "Lessen input"] <- "Lessen input"
+dat$sensory_input_binary <- factor(dat$sensory_input_binary, levels = c("Lessen input", "sensory input"))
 
-model_formulas <- c("time_to_enter ~ sensory_input_sum", "time_to_enter ~ sensory_input_binary", "time_to_enter ~ 1")
+model_formulas <- c("time_to_enter ~ sensory_input_sum", "time_to_enter ~ sensory_input_binary", 
+                    "time_to_enter ~ 1")
 
 itrns <- 100000
 
@@ -173,7 +280,7 @@ itrns <- 100000
 replic_models_ordinal <- pblapply(model_formulas, function(x){  
  
   # replicate each one 3 times
-  models <- replicate(3, MCMCglmm(fixed = as.formula(x), random = ~ individual, data = dat, verbose = FALSE, nitt = itrns, start = list(QUASI = FALSE, family = if (grepl("categ", x)) "gaussian", "ordinal"), thin = 250, burnin = 10000), simplify = FALSE)
+  models <- replicate(3, MCMCglmm(fixed = as.formula(x), random = ~ individual, data = dat, verbose = FALSE, nitt = itrns, start = list(QUASI = FALSE), thin = 250, burnin = 10000), simplify = FALSE)
   
   
   return(models)
@@ -207,15 +314,29 @@ models_ordinal[, !colnames(models_ordinal) %in% "family"]
 
 As the model including sensory input as a binary ordinal variable provides a better fit, we proceed to evaluate it: 
 ```{r, eval=TRUE, echo=TRUE}
+md <- replic_models_ordinal$`time_to_enter ~ sensory_input_binary`[[1]]
+summary(md)
 
-summary(replic_models_ordinal$`time_to_enter ~ sensory_input_binary`[[1]])
+colnames(md$Sol) <- gsub("sensory_input_", "", colnames(md$Sol))
+
+# stack posteriors excluding intercept
+Y <- stack(as.data.frame(md$Sol[, -1]))
+
+# plot posteriors
+ggplot(Y, aes(x=values)) +
+  geom_vline(xintercept = 0, col = "red", lty = 2) +
+  geom_density() +
+  labs(y = "Density", x = "Posterior of binary sensory input") +
+  # facet_wrap(~ ind, ncol = 2) +
+  theme_classic(base_size = 24)
 
 ```
 
+* Note that here the baseline treatment is "control", so effect size and CI values are positive. They are presented as negative values to simplified the comparison with additional statistical analysis (below)
 
 <div class="alert alert-info">
 
- - A better fit is found when modeling sensory input as a presence absence ordinal variable, rather  than as a sum of sensory inputs 
+ - A better fit is found when modeling sensory input as a presence/absence variable, rather than as a sum of sensory inputs 
 
 </div>
 

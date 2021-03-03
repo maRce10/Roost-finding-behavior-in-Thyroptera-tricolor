@@ -1,6 +1,6 @@
 ---
 title: Roost finding behavior in Thyroptera tricolor
-author: Marcelo Araya Salas
+author: Marcelo Araya Salas, Miriam Gioiosa and Gloriana Chaverri
 output: github_document
 editor_options:
   chunk_output_type: console
@@ -40,11 +40,11 @@ The project aims to evaluate the use of different sensory inputs in roost findin
 
 ## In progress
 
-*  
+*  Writting intro, methods and results
 
 ## To-do list
 
-* 
+* Writting discussion
 
 ## Status
 Project is: _in progress_
