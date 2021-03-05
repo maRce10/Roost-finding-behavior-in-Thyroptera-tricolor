@@ -43,7 +43,7 @@ theme_set(theme_classic(base_size = 24))
 
 ```
 
-```{r explore data, include = FALSE, eval = TRUE}
+```{r load data, include = FALSE, eval = TRUE}
 
 dat <- as.data.frame(read_excel("./data/raw/time_entering_roost_thyroptera.xlsx"))
 
@@ -122,7 +122,7 @@ table(dat$treatment[!duplicated(paste(dat$sensory_input_categ, dat$individual))]
 
 * The `r table(table(dat$individual[!duplicated(paste(dat$sensory_input_categ, dat$individual))]))[1]` individuals with only 1 treatment were excluded so the final sample size `r  table(table(dat$individual[!duplicated(paste(dat$sensory_input_categ, dat$individual))]))[1]`
 
-```{r}
+```{r exclude individuals with 1 experiment}
 
 # exclude individuals with 1 experiment
 
@@ -214,19 +214,25 @@ ggplot(Y, aes(x=values)) +
   theme_classic(base_size = 24)
 
 
-  ```
+```
 
 The following plot help to visualized the pattern inferred by the model:
 
 ```{r, eval=TRUE, echo=TRUE}
 
+
 agg_dat <- aggregate(time_to_enter ~ sensory_input_categ, data = dat, mean)
 
 agg_dat$sd  <- aggregate(time_to_enter ~ sensory_input_categ, data = dat, sd)[, 2]
 
-ggplot(agg_dat, aes(x = sensory_input_categ, y = time_to_enter)) + 
-  geom_pointrange(aes(ymin = time_to_enter - sd, ymax = time_to_enter + sd), color = viridis(10, alpha = 1)[8], size = 1.3) + 
+gg1 <- ggplot(agg_dat, aes(x = sensory_input_categ, y = time_to_enter)) + 
+  geom_violin(data = dat, aes(x = sensory_input_categ, y = time_to_enter), col = viridis(10, alpha = 0.6)[8], fill = viridis(10, alpha = 0.6)[8]) +
+  geom_pointrange(aes(ymin = time_to_enter - sd, ymax = time_to_enter + sd), color = "gray40", size = 1.3) + 
   theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) + labs(x = "Sensory input", y = "Time to enter roost (s)")
+
+gg1
+
+ggsave(gg1, filename = "./output/mean_sd_and_violin_time_to_enter_by_treament.tiff", width = 7.7, height = 5.7)
 
 ```
 
