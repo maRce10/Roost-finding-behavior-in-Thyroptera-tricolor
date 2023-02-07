@@ -22,7 +22,7 @@ editor_options:
 First install/load packages:
 ```{r packages, eval=TRUE, warning=FALSE, message=FALSE}
 
-x <- c("readxl", "brms", "viridis", "ggplot2", "pbapply", "cowplot", "kableExtra", "seewave", "tuneR", "viridis", github = "maRce10/brmsish")
+x <- c("readxl", "brms", "viridis", "ggplot2", "pbapply", "cowplot", "kableExtra", "warbleR", github = "maRce10/brmsish")
 
 source("https://raw.githubusercontent.com/maRce10/sketchy/main/R/load_packages.R")
 
@@ -41,6 +41,7 @@ theme_set(theme_classic(base_size = 24))
 source("~/Dropbox/R_package_testing/brmsish/R/contrasts.R")
 source("~/Dropbox/R_package_testing/brmsish/R/html_summary.R")
 source("~/Dropbox/R_package_testing/brmsish/R/read_summary.R")
+source("~/Dropbox/R_package_testing/brmsish/R/helpers.R")
 ```
 
 Read and prepare data:
@@ -64,7 +65,7 @@ write.csv(dat, "./data/raw/time_entering_roost_thyroptera.csv", row.names = FALS
 
 ```{r, eval = TRUE}
 
-total_dat <- read.csv("./data/raw/time_entering_roost_thyroptera.csv")
+total_dat <- read.csv("https://raw.githubusercontent.com/maRce10/Roost-finding-behavior-in-Thyroptera-tricolor/main/data/raw/time_entering_roost_thyroptera.csv")
 
 total_dat$sensory_input <- factor(total_dat$sensory_input, levels = c("Sound & vision", "Noise control", "Sound", "Vision", "Lessen input"))
 
@@ -225,7 +226,7 @@ ggplot(dat, aes(y = time_to_enter, x = sensory_input)) +
    scale_x_discrete(labels=c("Control" = "Noise control", "Sound vision" = "Sound & vision", "Vision" = "Vision", "Lessen input" = "Lessen input")) +
   labs(x = "Sensory input       ", y = "Time to enter roost (s)") + theme(axis.text.x = element_text(angle = 15, hjust = 1))
 
-# ggsave(filename = "./output/time_to_enter_by_treatment.jpeg", dpi = 300, width = 3000, height = 1500, units = "px")
+# ggsave(filename = "./output/time_to_enter_by_treatment.tiff", dpi = 300, width = 3000, height = 1500, units = "px")
 
 ```
 
@@ -293,7 +294,7 @@ Compare all contrasts
 # contrasts
 contrasts(model = brms_models[[rownames(comp_mods)[1]]], predictor = "sensory_input", n.posterior = 2000, level.sep = " VS ", fill = "#e85307", gsub.pattern = c("Lesseninput", "Soundvision", "Noisecontrol"), gsub.replacement = c("Lessen input", "Sound & vision", "Noise control"), html.table = TRUE, plot = TRUE,  sort.levels = c("Lessen input","Vision", "Sound", "Sound & vision", "Noise control"))
 
-# ggsave(filename = "./output/contrasts_between_treatments.jpeg", dpi = 300, width = 2000, height = 1000, units = "px")
+ggsave(filename = "./output/contrasts_between_treatments.tiff", dpi = 300, width = 2000, height = 1000, units = "px")
 
 ```
 
@@ -453,10 +454,8 @@ contrasts(model = brms_models[[rownames(comp_mods)[1]]], predictor = "sensory_in
 
 reverse.viridis <- function (...) viridis(..., direction = -1) 
 
-wv <- readWave(filename = "./data/raw/thyroptera_echolocation_clip.wav")
+wv <- read_wave("https://github.com/maRce10/Roost-finding-behavior-in-Thyroptera-tricolor/raw/main/data/raw/thyroptera_echolocation_clip.wav")
 
-
-library(warbleR)
 
 wv <- ffilter(wv, from = 40000, to = 170000, bandpass = TRUE, output = "Wave")
 
@@ -489,7 +488,7 @@ m <- cbind(lf, rgh, btm, tp)
 # graphics.off()
 invisible(close.screen(all.screens = TRUE))
 
-# jpeg(filename = "./output/diagram_experimental_design.jpeg", res = 300, width = 3500, height = 2000)
+# tiff(filename = "./output/diagram_experimental_design.tiff", res = 300, width = 3500, height = 2000)
 
 sc <- split.screen(figs = m)
 
