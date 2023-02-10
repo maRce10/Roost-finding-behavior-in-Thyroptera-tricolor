@@ -181,9 +181,7 @@ Raw data plot
 cols <- viridis(10)
 
 agg_dat <- aggregate(time_to_enter ~ sensory_input, dat, mean)
-agg_dat$sd <- aggregate(time_to_enter ~ sensory_input, dat, sd)[, 2]
 agg_dat$n <- sapply(1:nrow(agg_dat), function(x) length(unique(dat$individual[dat$sensory_input == agg_dat$sensory_input[x]]))) 
-agg_dat$labels <- c("a", "a", "a", "a", "b")
 agg_dat$n.labels <- paste("n =", agg_dat$n)
 agg_dat$sensory_input <- factor(agg_dat$sensory_input)
 
@@ -191,35 +189,33 @@ agg_dat$sensory_input <- factor(agg_dat$sensory_input)
 fill_color <- adjustcolor("#e85307", 0.6)
 
 ggplot(dat, aes(y = time_to_enter, x = sensory_input)) +
-  ## add half-violin from {ggdist} package
+  # add half-violin from {ggdist} package
   ggdist::stat_halfeye(
     fill = fill_color,
     alpha = 0.5,
-    ## custom bandwidth
+    # custom bandwidth
     adjust = .5,
-    ## adjust height
+    # adjust height
     width = .6,
     .width = 0,
-    ## move geom to the cright
+    # move geom to the cright
     justification = -.2,
     point_colour = NA
   ) +
   geom_boxplot(fill = fill_color,
     width = .15,
-    ## remove outliers
-    outlier.shape = NA ## `outlier.shape = NA` works as well
+    # remove outliers
+    outlier.shape = NA # `outlier.shape = NA` works as well
   ) +
-  ## add justified jitter from the {gghalves} package
+  # add justified jitter from the {gghalves} package
   gghalves::geom_half_point(
     color = fill_color,
-    ## draw jitter on the left
+    # draw jitter on the left
     side = "l",
-    ## control range of jitter
+    # control range of jitter
     range_scale = .4,
-    ## add some transparency
+    # add some transparency
     alpha = .5,
-  ) +
-    labs(x=" ", y="Average Nearest Neighbor Distance (mm)"
   ) +
    ylim(c(-30, 310)) +
   geom_text(data = agg_dat, aes(y = rep(-25, 5), x = sensory_input, label = n.labels), nudge_x = -0.13, size = 6) + 
@@ -321,7 +317,6 @@ Raw data plot
 ```{r, eval = TRUE}
 
 agg_dat <- aggregate(time_to_enter ~ sensory_input, dat[dat$time_to_enter < 300, ], mean)
-agg_dat$sd <- aggregate(time_to_enter ~ sensory_input, dat[dat$time_to_enter < 300, ], sd)[, 2]
 agg_dat$n <- sapply(1:nrow(agg_dat), function(x) length(unique(dat$individual[dat$sensory_input == agg_dat$sensory_input[x] & dat$time_to_enter < 300]))) 
 agg_dat$labels <- c("a", "a", "a", "a", "b")
 agg_dat$n.labels <- paste("n =", agg_dat$n)
@@ -330,35 +325,33 @@ agg_dat$sensory_input <- factor(agg_dat$sensory_input)
 # raincoud plot:
 
 ggplot(dat[dat$time_to_enter < 300, ], aes(y = time_to_enter, x = sensory_input)) +
-  ## add half-violin from {ggdist} package
+  # add half-violin from {ggdist} package
   ggdist::stat_halfeye(
     fill = fill_color,
     alpha = 0.5,
-    ## custom bandwidth
+    # custom bandwidth
     adjust = .5,
-    ## adjust height
+    # adjust height
     width = .6,
     .width = 0,
-    ## move geom to the cright
+    # move geom to the cright
     justification = -.2,
     point_colour = NA
   ) +
   geom_boxplot(fill = fill_color,
     width = .15,
-    ## remove outliers
-    outlier.shape = NA ## `outlier.shape = NA` works as well
+    # remove outliers
+    outlier.shape = NA # `outlier.shape = NA` works as well
   ) +
-  ## add justified jitter from the {gghalves} package
+  # add justified jitter from the {gghalves} package
   gghalves::geom_half_point(
     color = fill_color,
-    ## draw jitter on the left
+    # draw jitter on the left
     side = "l",
-    ## control range of jitter
+    # control range of jitter
     range_scale = .4,
-    ## add some transparency
+    # add some transparency
     alpha = .5,
-  ) +
-    labs(x=" ", y="Average Nearest Neighbor Distance (mm)"
   ) +
    ylim(c(-30, 310)) +
   # geom_text(data = agg_dat, aes(y = rep(340, 5), x = sensory_input, label = labels), size = 7) +
@@ -492,7 +485,7 @@ invisible(close.screen(all.screens = TRUE))
 
 sc <- split.screen(figs = m)
 
-## sound and vision
+# sound and vision
 screen(2)
 
 par(mar = c(3, 6, 1, 1))
@@ -507,7 +500,7 @@ mtext(side = 2, text = "Frequency (kHz)", line = 4, cex = cex)
 mtext(side = 1, text = "Sound & vision  ", line = 1.5, cex = cex)
 
 
-## vision
+# vision
 screen(3)
 par(mar = c(3, 6, 1, 1))
 warbleR:::spectro_wrblr_int2(subwv + mask * 1000, grid = FALSE, collev.min = -35, wl = 120, palette = reverse.viridis, ovlp = ovlp, zp = 1000, tlim = c(0.001, 0.0085), axisX = FALSE, tlab = NULL, axisY = FALSE, flab = NULL, flim = c(0, 220))
@@ -518,7 +511,7 @@ axis(side = 2, cex.axis = cex, labels = c(0, 100, 200), at = c(0, 100, 200))
 
 mtext(side = 1, text = "Vision", line = 1.5, cex = cex)
 
-## Noise control
+# Noise control
 
 screen(4)
 
@@ -532,7 +525,7 @@ axis(side = 2, cex.axis = cex, labels = c(0, 100, 200), at = c(0, 100, 200))
 mtext(side = 1, text = "Noise control", line = 1.5, cex = cex)
 
 
-## sound
+# sound
 par(bg = "black", new = TRUE)
 screen(6)
 
@@ -546,7 +539,7 @@ axis(side = 2, cex.axis = cex, labels = c(0, 100, 200), at = c(0, 100, 200), col
 mtext(side = 1, text = "Sound", line = 1.5, cex = cex, col = "white")
 
 
-## lessen input
+# lessen input
 par(bg = "black", new = TRUE)
 screen(7)
 
