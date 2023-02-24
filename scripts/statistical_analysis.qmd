@@ -1,0 +1,663 @@
+---
+title: Flexible use of visual and acoustic cues during roost finding in Spix's disc-winged bat
+subtitle: Statistical analysis
+author: Miriam Gioiosa, Marcelo Araya-Salas, Cristian Castillo-Salazar, Silvia Chaves-Ramirez, Maurizio Gioiosa, Nazareth Rojas, Mariela Sanchez, Dino Scaravelli, Gloriana Chaverri
+date: "`r Sys.Date()`"
+toc: true
+toc-depth: 2
+toc-location: left
+number-sections: true
+highlight-style: pygments
+format:
+  html:
+    df-print: kable
+    code-fold: show
+    code-tools: true
+    css: qmd.css
+editor_options: 
+  chunk_output_type: console
+---
+
+
+<!-- this code add line numbers to code blocks -->
+<!-- only works when code folding is not used in yaml (code_folding: show) -->
+
+```{=html}
+<style>
+body
+  { counter-reset: source-line 0; }
+pre.numberSource code
+  { counter-reset: none; }
+</style>
+```
+
+```{r set root directory, echo = FALSE}
+
+# set working directory as project directory or one directory above,
+rootdir <- try(rprojroot::find_rstudio_root_file(), silent = TRUE)
+if (is(rootdir, "try-error")) rootdir <-  ".."
+knitr::opts_knit$set(root.dir = rootdir)
+
+```
+
+```{r add link to github repo, echo = FALSE, results='asis'}
+
+# print link to github repo if any
+if (file.exists("./.git/config")){
+  config <- readLines("./.git/config")
+  url <- grep("url",  config, value = TRUE)
+  url <- gsub("\\turl = |.git$", "", url)
+  cat("\nSource code and data found at [", url, "](", url, ")", sep = "")
+  }
+
+```
+
+```{r setup style, echo = FALSE, message = FALSE, warning=FALSE}
+
+# options to customize chunk outputs
+knitr::opts_chunk$set(
+  class.source = "numberLines lineAnchors", # for code line numbers
+  tidy.opts = list(width.cutoff = 65), 
+  tidy = TRUE,
+  message = FALSE
+ )
+
+```
+
+
+<!-- skyblue box -->
+<div class="alert alert-info">
+
+# Data analysis for the paper {.unnumbered .unlisted}
+
+Gioiosa, Miriam; Araya-Salas, Marcelo; Castillo Salazar, Cristian; Chaves-Ramírez, Silvia; Gioiosa, Maurizio; Rojas, Nazareth; Sanchez, Mariela; Scaravelli, Dino; Chaverri, Gloriana. 2023. **_Flexible use of visual and acoustic cues during roost finding in Spix's disc-winged bat_**. Behavioral Ecology.
+
+
+</div>
+
+# Load packages {.unnumbered .unlisted}
+
+First install/load packages:
+```{r packages, eval=TRUE, warning=FALSE, message=FALSE}
+
+source("https://raw.githubusercontent.com/maRce10/sketchy/main/R/load_packages.R")
+
+load_packages(c("readxl", "brms", "viridis", "ggplot2", "pbapply", "cowplot", "kableExtra", "warbleR", github = "maRce10/brmsish"))
+
+```
+
+```{r options and functions, eval = TRUE, echo = FALSE}
+
+theme_set(theme_classic(base_size = 24))
+
+source("~/Dropbox/R_package_testing/brmsish/R/contrasts.R")
+source("~/Dropbox/R_package_testing/brmsish/R/fit_summary.R")
+source("~/Dropbox/R_package_testing/brmsish/R/read_summary.R")
+source("~/Dropbox/R_package_testing/brmsish/R/helpers.R")
+```
+
+Read and prepare data:
+```{r load data,  eval = FALSE, echo = FALSE}
+
+dat <- as.data.frame(read_excel("./data/raw/time_entering_roost_thyroptera.xlsx"))
+
+dat$sensory_input <- as.factor(paste(dat$treatment, dat$time_of_the_day, sep = "-"))
+
+levels(dat$sensory_input) <- list("Sound & vision" = "control-day", "Noise control" = "white-noise_no_masking-day", "Sound" =  "white-noise_no_masking-night", "Vision" = "echolocation_masked-day", "Lessen input" = "echolocation_masked-night")
+
+# set those that did not enter the roost after 5 min to max duration
+dat$time_to_enter[dat$time_to_enter > 300] <- 300
+
+head(dat)
+
+dat$treatment <- dat$sensory_input_categ <- NULL
+
+write.csv(dat, "./data/raw/time_entering_roost_thyroptera.csv", row.names = FALSE)
+```
+
+```{r, eval = TRUE}
+
+total_dat <- read.csv("https://raw.githubusercontent.com/maRce10/Roost-finding-behavior-in-Thyroptera-tricolor/main/data/raw/time_entering_roost_thyroptera.csv")
+
+total_dat$sensory_input <- factor(total_dat$sensory_input, levels = c("Sound & vision", "Noise control", "Sound", "Vision", "Lessen input"))
+
+```
+
+Sensory input treatments:
+
+- Sound & vision: diurnal experiments with no noise playback
+- Noise control: diurnal experiments with control (no echolocation-masking) playback
+- Sound: nocturnal experiments with no playback
+- Vision: diurnal experiments with echolocation-masking playback
+- Lessen input: nocturnal experiments with echolocation-masking playback
+
+# Sample sizes
+
+First, exclude individuals with 1 experiment:
+
+```{r exclude individuals with 1 experiment, eval = TRUE}
+
+tab <- table(total_dat$individual[!duplicated(paste(total_dat$sensory_input, total_dat$individual))])
+
+dat <- total_dat[!total_dat$individual %in% names(tab)[tab == 1], ]
+
+```
+
+Experiments per date:
+
+```{r, eval = TRUE}
+# Dates
+table(dat$date)
+
+```
+
+Test per individual:
+
+```{r, eval = TRUE}
+
+table(dat$individual)
+
+```
+
+Number of individuals by number of tests:
+
+```{r, eval = TRUE}
+
+aggregate(individual ~ sensory_input, dat, function(x) length(unique(x)))
+
+```
+
+Experiments per individual:
+
+```{r, eval = TRUE}
+
+table(dat$individual[!duplicated(paste(dat$sensory_input, dat$individual))])
+
+```
+
+Number of individuals by number of experiments:
+
+```{r, eval = TRUE}
+
+table(table(dat$individual[!duplicated(paste(dat$sensory_input, dat$individual))]))
+
+```
+
+Tests per treatment:
+
+```{r, eval = TRUE}
+
+table(dat$sensory_input, dat$time_of_the_day)
+
+```
+
+Experiments per treatment:
+
+```{r, eval = TRUE}
+
+table(dat$sensory_input[!duplicated(paste(dat$sensory_input, dat$individual))], dat$time_of_the_day[!duplicated(paste(dat$sensory_input, dat$individual))])
+
+```
+
+&nbsp;
+
+* `r length(unique(dat$individual))` individuals were tested
+
+* The `r table(table(total_dat$individual[!duplicated(paste(total_dat$sensory_input, total_dat$individual))]))[1]` individuals with only 1 treatment were excluded so the final individual sample size was `r  length(unique(dat$individual))`
+
+
+
+* The mean number of tests per individual (after excluding those with 1 treatment) was `r round(mean(table(dat$individual)), 2)` (range = `r round(range(table(dat$individual)), 2)`)
+
+* The mean number of experimental treatments in which each individual was tested  (after excluding those with 1 treatment) was `r  round(length(unique(paste(dat$sensory_input, dat$individual))) / length(unique(dat$individual)), 2)`
+
+&nbsp;
+
+# Effect of sensory input on the time to find the roost
+
+Bayesian generalized linear models on time (in s) to enter the roost, with individual as a random effect and sensory input treatment as predictors. An intercept-only (null) model was also included in the analysis: 
+
+1. Sensory input as a categorical variable:
+$$Time\ to\ enter\ roost \sim  + categorical\ input + (1 | individual)$$
+2. Null model with no predictor:
+$$Time\ to\ enter\ roost \sim 1 + (1 | individual)$$
+
+A loop is used to run these models, 3 chains per model, 10000 iterations each. Models were run on the complete data set and on a subset including only trials in which individuals entered the roost.
+
+## Models using all the data
+
+Raw data plot
+
+```{r, eval = TRUE}
+
+cols <- viridis(10)
+
+agg_dat <- aggregate(time_to_enter ~ sensory_input, dat, mean)
+agg_dat$n <- sapply(1:nrow(agg_dat), function(x) length(unique(dat$individual[dat$sensory_input == agg_dat$sensory_input[x]]))) 
+agg_dat$n.labels <- paste("n =", agg_dat$n)
+agg_dat$sensory_input <- factor(agg_dat$sensory_input)
+
+# raincoud plot:
+fill_color <- adjustcolor("#e85307", 0.6)
+
+ggplot(dat, aes(y = time_to_enter, x = sensory_input)) +
+  # add half-violin from {ggdist} package
+  ggdist::stat_halfeye(
+    fill = fill_color,
+    alpha = 0.5,
+    # custom bandwidth
+    adjust = .5,
+    # adjust height
+    width = .6,
+    .width = 0,
+    # move geom to the cright
+    justification = -.2,
+    point_colour = NA
+  ) +
+  geom_boxplot(fill = fill_color,
+    width = .15,
+    # remove outliers
+    outlier.shape = NA # `outlier.shape = NA` works as well
+  ) +
+  # add justified jitter from the {gghalves} package
+  gghalves::geom_half_point(
+    color = fill_color,
+    # draw jitter on the left
+    side = "l",
+    # control range of jitter
+    range_scale = .4,
+    # add some transparency
+    alpha = .5,
+    transformation = ggplot2::position_jitter(height = 0)  
+  ) +
+   ylim(c(-30, 310)) +
+  geom_text(data = agg_dat, aes(y = rep(-25, 5), x = sensory_input, label = n.labels), nudge_x = -0.13, size = 6) + 
+   scale_x_discrete(labels=c("Control" = "Noise control", "Sound vision" = "Sound & vision", "Vision" = "Vision", "Lessen input" = "Lessen input")) +
+  labs(x = "Sensory input       ", y = "Time to enter roost (s)") + theme(axis.text.x = element_text(angle = 15, hjust = 1))
+
+# ggsave(filename = "./output/time_to_enter_by_treatment.tiff", dpi = 300, width = 3000, height = 1500, units = "px")
+
+```
+
+```{r brms models, eval = FALSE, echo = TRUE, fig.height=10}
+
+
+model_formulas <- c("time_to_enter ~ sensory_input + (1 | individual)", "time_to_enter ~ 1 + (1 | individual)")
+
+iter <- 5000
+chains <- 4
+
+priors <- c(set_prior("student_t(10,0,1)", class = "sigma"),
+           set_prior("student_t(10,0,1)", class = "sd"))
+
+
+# Run loops with models
+brms_models <- lapply(model_formulas, function(x){
+
+  mod <- brm(
+          formula = x,
+          iter = iter,
+          thin = 1,
+          data = dat,
+          family = lognormal(),
+          silent = 2,
+          chains = chains,
+          cores = chains,
+          prior = priors
+          )
+  
+  mod <- add_criterion(mod, c("loo"), save_pars = save_pars(all = TRUE))
+
+  return(mod)
+  })
+
+names(brms_models) <- model_formulas
+
+saveRDS(brms_models, "./data/processed/regresion_models_brms.RDS")
+```
+
+```{r print brms results, eval=TRUE, echo=TRUE, results = 'asis', message=FALSE}
+
+brms_models <- readRDS("./data/processed/regresion_models_brms.RDS")
+
+comp_mods <- loo_compare(brms_models[[1]], brms_models[[2]], model_names = names(brms_models))
+
+df1 <- kbl(comp_mods, row.names = TRUE, escape = FALSE, format = "html", digits = 3)
+
+cat("Compare models:")
+  
+kable_styling(df1, bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE, font_size = 12)
+
+cat("Best model:\n")
+
+cat(paste("-  ", rownames(comp_mods)[1], "\n"))
+
+# best model
+if (!grepl("1 +", rownames(comp_mods)[1], fixed = TRUE))
+fit_summary(fit = brms_models[[rownames(comp_mods)[1]]], gsub.pattern = "sensory_input", gsub.replacement = "", fill = "#e85307", trace.palette = terrain.colors)
+
+```
+
+Compare all contrasts
+```{r print contrasts brms results all data, eval=TRUE, echo=TRUE, results = 'asis', message=FALSE}
+
+# contrasts
+contrasts(fit = brms_models[[rownames(comp_mods)[1]]], predictor = "sensory_input", n.posterior = 2000, level.sep = " VS ", fill = "#e85307", gsub.pattern = c("Lesseninput", "Soundvision", "Noisecontrol"), gsub.replacement = c("Lessen input", "Sound & vision", "Noise control"), html.table = TRUE, plot = TRUE,  sort.levels = c("Lessen input","Vision", "Sound", "Sound & vision", "Noise control"))
+
+ggsave(filename = "./output/contrasts_between_treatments.tiff", dpi = 300, width = 2000, height = 1000, units = "px")
+
+```
+
+
+&nbsp;
+
+<div class="alert alert-info">
+
+### Takeaways
+
+- "lessen input" was the only sensory input treatment in which a increase in time was detected: it show a longer time to enter the roost than all other treatments
+
+
+</div>
+
+
+&nbsp;
+
+
+## Models on the data excluding bats that did not enter the roost
+
+Raw data plot
+
+```{r, eval = TRUE}
+
+agg_dat <- aggregate(time_to_enter ~ sensory_input, dat[dat$time_to_enter < 300, ], mean)
+agg_dat$n <- sapply(1:nrow(agg_dat), function(x) length(unique(dat$individual[dat$sensory_input == agg_dat$sensory_input[x] & dat$time_to_enter < 300]))) 
+agg_dat$labels <- c("a", "a", "a", "a", "b")
+agg_dat$n.labels <- paste("n =", agg_dat$n)
+agg_dat$sensory_input <- factor(agg_dat$sensory_input)
+
+# raincoud plot:
+
+ggplot(dat[dat$time_to_enter < 300, ], aes(y = time_to_enter, x = sensory_input)) +
+  # add half-violin from {ggdist} package
+  ggdist::stat_halfeye(
+    fill = fill_color,
+    alpha = 0.5,
+    # custom bandwidth
+    adjust = .5,
+    # adjust height
+    width = .6,
+    .width = 0,
+    # move geom to the cright
+    justification = -.2,
+    point_colour = NA
+  ) +
+  geom_boxplot(fill = fill_color,
+    width = .15,
+    # remove outliers
+    outlier.shape = NA # `outlier.shape = NA` works as well
+  ) +
+  # add justified jitter from the {gghalves} package
+  gghalves::geom_half_point(
+    color = fill_color,
+    # draw jitter on the left
+    side = "l",
+    # control range of jitter
+    range_scale = .4,
+    # add some transparency
+    alpha = .5,
+    transformation = ggplot2::position_jitter(height = 0)
+  ) +
+   ylim(c(-30, 310)) +
+  # geom_text(data = agg_dat, aes(y = rep(340, 5), x = sensory_input, label = labels), size = 7) +
+  geom_text(data = agg_dat, aes(y = rep(-25, 5), x = sensory_input, label = n.labels), nudge_x = -0.13, size = 6) + 
+   scale_x_discrete(labels=c("Control" = "Noise control", "Sound vision" = "Sound & vision", "Vision" = "Vision", "Lessen input" = "Lessen input")) +
+  labs(x = "Sensory input       ", y = "Time to enter roost (s)") + theme(axis.text.x = element_text(angle = 15, hjust = 1))
+
+```
+
+```{r brms models subdata, eval = FALSE, echo = TRUE, fig.height=10}
+
+
+model_formulas <- c("time_to_enter ~ sensory_input + (1 | individual)", "time_to_enter ~ 1 + (1 | individual)")
+
+iter <- 5000
+chains <- 4
+priors <- c(set_prior("student_t(10,0,1)", class = "sigma"),
+           set_prior("student_t(10,0,1)", class = "sd"))
+
+
+# Run loops with models
+brms_models <- lapply(model_formulas, function(x){
+
+  mod <- brm(
+          formula = x,
+          iter = iter,
+          thin = 1,
+          data = dat[dat$time_to_enter < 300, ],
+          family = lognormal(),
+          silent = 2,
+          chains = chains,
+          cores = chains,
+          prior = priors,
+          control=list(adapt_delta=0.99, max_treedepth=15)
+          )
+  
+  mod <- add_criterion(mod, c("loo"), save_pars = save_pars(all = TRUE))
+
+  return(mod)
+  })
+
+names(brms_models) <- model_formulas
+
+saveRDS(brms_models, "./data/processed/regression_models_brms_subset.RDS")
+```
+
+```{r print brms results enter roost, eval=TRUE, echo=TRUE, results = 'asis', message=FALSE}
+brms_models <- readRDS("./data/processed/regression_models_brms_subset.RDS")
+
+comp_mods <- loo_compare(brms_models[[1]], brms_models[[2]], model_names = names(brms_models))
+
+
+df1 <- kbl(comp_mods, row.names = TRUE, escape = FALSE, format = "html", digits = 3)
+
+cat("Compare models:")
+  
+kable_styling(df1, bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE, font_size = 12)
+
+cat("Best model:\n")
+
+cat(paste("-  ", rownames(comp_mods)[1], "\n"))
+
+# best model
+if (!grepl("1 +", rownames(comp_mods)[1], fixed = TRUE))
+fit_summary(fit = brms_models[[rownames(comp_mods)[1]]], gsub.pattern = "sensory_input", gsub.replacement = "",  fill = "#e85307", trace.palette = terrain.colors)
+
+```
+
+Compare all contrasts
+```{r print contrasts brms results sub data, eval=TRUE, echo=TRUE, results = 'asis', message=FALSE}
+
+# contrasts
+contrasts(fit = brms_models[[rownames(comp_mods)[1]]], predictor = "sensory_input", n.posterior = 2000, level.sep = " VS ", fill = "#e85307", gsub.pattern = c("Lesseninput", "Soundvision", "Noisecontrol"), gsub.replacement = c("Lessen input", "Sound & vision", "Noise control"), html.table = TRUE, plot = TRUE, sort.levels = c("Lessen input", "Vision", "Sound", "Sound & vision", "Noise control"))
+
+```
+
+
+&nbsp;
+
+<div class="alert alert-info">
+
+### Takeaways
+
+- Results remain qualitatively similar after excluding individuals that did not enter the roost
+
+
+</div>
+
+
+# Treatment diagram
+```{r, eval = TRUE, results='asis'}
+
+
+reverse.viridis <- function (...) viridis(..., direction = -1) 
+
+wv <- read_wave("https://github.com/maRce10/Roost-finding-behavior-in-Thyroptera-tricolor/raw/main/data/raw/thyroptera_echolocation_clip.wav")
+
+
+wv <- ffilter(wv, from = 40000, to = 170000, bandpass = TRUE, output = "Wave")
+
+wv1 <- cutw(wv, from = 0.005, to = 0.009, output = "Wave")
+wv2 <- cutw(wv, from = 0.036, to = duration(wv) - 0.004, output = "Wave")
+
+subwv <- pastew(wv1, wv2, output = "Wave")
+
+ns <- seewave::noisew(f = subwv@samp.rate, output = "Wave", d = duration(subwv))
+
+
+mask <- ffilter(ns, from = 0, to = 45000, bandpass = FALSE, output = "Wave")
+
+no_mask <- ffilter(ns, from = 0, to = 45000, bandpass = TRUE, output = "Wave")
+
+subwv@left <- subwv@left[1:length(mask)]
+
+ovlp <- 99
+cex <- 2
+res <- 200
+bl <- 4
+hgh <- wdh <- 480 * 4
+
+lf <- c(0, 2/14, 6/14, 10/14, 0, 1/6, 1/2, 5/6)
+rgh <- c(2/14, 6/14, 10/14, 1, 1/6, 1/2, 5/6, 1)
+btm <- c(1/2, 1/2, 1/2, 1/2, 0, 0, 0, 0)  
+tp <- c(1, 1, 1, 1, 1/2, 1/2, 1/2, 1/2)  
+m <- cbind(lf, rgh, btm, tp)
+
+# graphics.off()
+invisible(close.screen(all.screens = TRUE))
+
+# tiff(filename = "./output/diagram_experimental_design.tiff", res = 300, width = 3500, height = 2000)
+
+sc <- split.screen(figs = m)
+
+# sound and vision
+screen(2)
+
+par(mar = c(3, 6, 1, 1))
+warbleR:::spectro_wrblr_int2(subwv, grid = FALSE, collev.min = -35, wl = 120, palette = reverse.viridis, ovlp = ovlp, zp = 1000, tlim = c(0.001, 0.0085), axisX = FALSE, tlab = NULL, axisY = FALSE, flab = NULL, flim = c(0, 220))
+
+box(lwd = bl)
+
+axis(side = 2, cex.axis = cex, labels = c(0, 100, 200), at = c(0, 100, 200))
+
+mtext(side = 2, text = "Frequency (kHz)", line = 4, cex = cex)
+
+mtext(side = 1, text = "Sound & vision  ", line = 1.5, cex = cex)
+
+
+# vision
+screen(3)
+par(mar = c(3, 6, 1, 1))
+warbleR:::spectro_wrblr_int2(subwv + mask * 1000, grid = FALSE, collev.min = -35, wl = 120, palette = reverse.viridis, ovlp = ovlp, zp = 1000, tlim = c(0.001, 0.0085), axisX = FALSE, tlab = NULL, axisY = FALSE, flab = NULL, flim = c(0, 220))
+
+box(lwd = bl)
+
+axis(side = 2, cex.axis = cex, labels = c(0, 100, 200), at = c(0, 100, 200))
+
+mtext(side = 1, text = "Vision", line = 1.5, cex = cex)
+
+# Noise control
+
+screen(4)
+
+par(mar = c(3, 6, 1, 1), new = TRUE)
+warbleR:::spectro_wrblr_int2(subwv  + no_mask * 1000, grid = FALSE, collev.min = -35, wl = 120, palette = reverse.viridis, ovlp = ovlp, zp = 1000, tlim = c(0.001, 0.0085), axisX = FALSE, tlab = NULL, axisY = FALSE, flab = NULL, flim = c(0, 220))
+
+box(lwd = bl)
+
+axis(side = 2, cex.axis = cex, labels = c(0, 100, 200), at = c(0, 100, 200))
+
+mtext(side = 1, text = "Noise control", line = 1.5, cex = cex)
+
+
+# sound
+par(bg = "black", new = TRUE)
+screen(6)
+
+par(mar = c(3, 8.5, 1, 1))
+warbleR:::spectro_wrblr_int2(subwv, grid = FALSE, collev.min = -35, wl = 120, palette = reverse.viridis, ovlp = ovlp, zp = 1000, tlim = c(0.001, 0.0085), axisX = FALSE, tlab = NULL, axisY = FALSE, flab = NULL, flim = c(0, 220))
+
+box(lwd = bl, col = "white")
+
+axis(side = 2, cex.axis = cex, labels = c(0, 100, 200), at = c(0, 100, 200), col.ticks = "white", col = "white", col.axis = "white")
+
+mtext(side = 1, text = "Sound", line = 1.5, cex = cex, col = "white")
+
+
+# lessen input
+par(bg = "black", new = TRUE)
+screen(7)
+
+par(mar = c(3, 8.5, 1, 1))
+
+# par(mar = c(1, 9, 1, 1), bg = "black", new = TRUE)
+warbleR:::spectro_wrblr_int2(subwv + mask * 1000, grid = FALSE, collev.min = -35, wl = 120, palette = reverse.viridis, ovlp = ovlp, zp = 1000, tlim = c(0.001, 0.0085), axisX = FALSE, tlab = NULL, axisY = FALSE, flab = NULL, flim = c(0, 220))
+
+box(lwd = bl, col = "white")
+
+axis(side = 2, cex.axis = cex, labels = c(0, 100, 200), at = c(0, 100, 200), col.ticks = "white", col = "white", col.axis = "white")
+
+mtext(side = 1, text = "Lessen input", line = 1.5, cex = cex, col = "white")
+# dev.off()
+
+par(bg = "black", new = TRUE)
+screen(5)
+par(mar = c(0, 0, 0, 0))
+plot(1, frame.plot = FALSE, type = "n")
+text(x = 1, y = 1.05, "Nighttime", srt = 90, 
+     cex = 1.2 * cex, col = "white")
+
+par(bg = "black", new = TRUE)
+screen(8)
+
+par(bg = "white", new = TRUE)
+screen(1)
+par(mar = c(0, 0, 0, 0))
+plot(1, frame.plot = FALSE, type = "n")
+text(x = 1, y = 1.05, "Daytime", srt = 90, 
+     cex = 1.2 * cex)
+
+# dev.off()
+
+```
+
+
+&nbsp;
+
+<!-- light green box -->
+
+<div class="alert alert-success">
+
+# Takeaways {.unnumbered .unlisted}
+
+
+
+</div>
+
+&nbsp;
+
+<!-- '---' adds a gray vertical line -->
+
+---
+
+&nbsp; 
+ 
+ <!-- add packages used, system details and versions  -->
+ 
+# Session information {.unnumbered .unlisted}
+
+```{r session info, echo=F}
+
+sessionInfo()
+
+```
