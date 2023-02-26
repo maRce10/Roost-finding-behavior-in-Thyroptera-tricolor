@@ -47,7 +47,7 @@ if (file.exists("./.git/config")){
   config <- readLines("./.git/config")
   url <- grep("url",  config, value = TRUE)
   url <- gsub("\\turl = |.git$", "", url)
-  cat("\nSource code and data found at [", url, "](", url, ")", sep = "")
+  cat("\nSource code and data also found at [", url, "](", url, ")", sep = "")
   }
 
 ```
@@ -59,7 +59,8 @@ knitr::opts_chunk$set(
   class.source = "numberLines lineAnchors", # for code line numbers
   tidy.opts = list(width.cutoff = 65), 
   tidy = TRUE,
-  message = FALSE
+  message = FALSE,
+  warning = FALSE
  )
 
 ```
@@ -74,6 +75,20 @@ Gioiosa, Miriam; Araya-Salas, Marcelo; Castillo Salazar, Cristian; Chaves-Ramír
 
 
 </div>
+
+&nbsp;
+
+<!-- light green box -->
+
+<div class="alert alert-success">
+
+# Abstract {.unnumbered .unlisted}
+
+The ability of an animal to detect environmental cues is crucial for its survival and fitness. In bats, sound certainly plays a significant role in the search for food, spatial navigation and social communication. Yet, the efficiency of bat’s echolocation could be limited by atmospheric attenuation and background clutter. In this context, sound can be complemented by other sensory modalities, like smell or vision. Spix’s disc-winged bat uses acoustic cues from other group members to locate the roost (tubular unfurled leaves of plants in the order Zingiberales). Our research focused on how individuals find a roost that has not been yet occupied, considering the urge to find a suitable leaf approximately every day, during nighttime or in daylight. We observed the process of roost finding in T. tricolor in a flight cage, manipulating the audio/visual sensory input available for each trial. A broadband noise was broadcast in order to mask echolocation, while experiments conducted at night reduced significantly the amount of light. We measured the time needed to locate the roost under these different conditions. Results show that with limited visual and acoustic cues, search time increases significantly. In contrast bats seemed capable of using acoustic and visual cues in a similarly efficient manner, since roost search times were equally short when bats could use only sound, only vision, or both senses at the same time. Our results show that non-acoustic inputs can still be an important source of information for finding critical resources in bats.
+
+</div>
+
+&nbsp;
 
 # Load packages {.unnumbered .unlisted}
 
@@ -90,13 +105,12 @@ load_packages(c("readxl", "brms", "viridis", "ggplot2", "pbapply", "cowplot", "k
 
 theme_set(theme_classic(base_size = 24))
 
-source("~/Dropbox/R_package_testing/brmsish/R/contrasts.R")
-source("~/Dropbox/R_package_testing/brmsish/R/fit_summary.R")
-source("~/Dropbox/R_package_testing/brmsish/R/read_summary.R")
-source("~/Dropbox/R_package_testing/brmsish/R/helpers.R")
 ```
 
-Read and prepare data:
+# Read and prepare data {.unnumbered .unlisted} 
+
+The data file can be downloaded at the paper's dryad repository or at the github repository ([link](https://raw.githubusercontent.com/maRce10/Roost-finding-behavior-in-Thyroptera-tricolor/main/data/raw/time_entering_roost_thyroptera.csv))
+
 ```{r load data,  eval = FALSE, echo = FALSE}
 
 dat <- as.data.frame(read_excel("./data/raw/time_entering_roost_thyroptera.xlsx"))
@@ -115,13 +129,22 @@ dat$treatment <- dat$sensory_input_categ <- NULL
 write.csv(dat, "./data/raw/time_entering_roost_thyroptera.csv", row.names = FALSE)
 ```
 
-```{r, eval = TRUE}
+```{r, eval = TRUE, echo = FALSE}
 
 total_dat <- read.csv("https://raw.githubusercontent.com/maRce10/Roost-finding-behavior-in-Thyroptera-tricolor/main/data/raw/time_entering_roost_thyroptera.csv")
 
 total_dat$sensory_input <- factor(total_dat$sensory_input, levels = c("Sound & vision", "Noise control", "Sound", "Vision", "Lessen input"))
 
 ```
+
+```{r, eval = FALSE, echo = TRUE}
+
+total_dat <- read.csv("Supp_Mat_1-time_entering_roost_thyroptera.csv")
+
+total_dat$sensory_input <- factor(total_dat$sensory_input, levels = c("Sound & vision", "Noise control", "Sound", "Vision", "Lessen input"))
+
+```
+
 
 Sensory input treatments:
 
@@ -222,7 +245,7 @@ $$Time\ to\ enter\ roost \sim  + categorical\ input + (1 | individual)$$
 2. Null model with no predictor:
 $$Time\ to\ enter\ roost \sim 1 + (1 | individual)$$
 
-A loop is used to run these models, 3 chains per model, 10000 iterations each. Models were run on the complete data set and on a subset including only trials in which individuals entered the roost.
+A loop is used to run these models, 4 chains per model, 5000 iterations each. Models were run on the complete data set and on a subset including only trials in which individuals entered the roost.
 
 ## Models using all the data
 
@@ -334,7 +357,7 @@ cat(paste("-  ", rownames(comp_mods)[1], "\n"))
 
 # best model
 if (!grepl("1 +", rownames(comp_mods)[1], fixed = TRUE))
-fit_summary(fit = brms_models[[rownames(comp_mods)[1]]], gsub.pattern = "sensory_input", gsub.replacement = "", fill = "#e85307", trace.palette = terrain.colors)
+extended_summary(fit = brms_models[[rownames(comp_mods)[1]]], gsub.pattern = "sensory_input", gsub.replacement = "", fill = "#e85307", trace.palette = terrain.colors, print.name = FALSE)
 
 ```
 
@@ -471,7 +494,7 @@ cat(paste("-  ", rownames(comp_mods)[1], "\n"))
 
 # best model
 if (!grepl("1 +", rownames(comp_mods)[1], fixed = TRUE))
-fit_summary(fit = brms_models[[rownames(comp_mods)[1]]], gsub.pattern = "sensory_input", gsub.replacement = "",  fill = "#e85307", trace.palette = terrain.colors)
+extended_summary(fit = brms_models[[rownames(comp_mods)[1]]], gsub.pattern = "sensory_input", gsub.replacement = "",  fill = "#e85307", trace.palette = terrain.colors, print.name = FALSE)
 
 ```
 
@@ -497,7 +520,7 @@ contrasts(fit = brms_models[[rownames(comp_mods)[1]]], predictor = "sensory_inpu
 
 
 # Treatment diagram
-```{r, eval = TRUE, results='asis'}
+```{r, eval = TRUE, results='asis', fig.width==12}
 
 
 reverse.viridis <- function (...) viridis(..., direction = -1) 
@@ -522,7 +545,7 @@ no_mask <- ffilter(ns, from = 0, to = 45000, bandpass = TRUE, output = "Wave")
 subwv@left <- subwv@left[1:length(mask)]
 
 ovlp <- 99
-cex <- 2
+cex <- 0.8 # try cex 2 for saving plot
 res <- 200
 bl <- 4
 hgh <- wdh <- 480 * 4
@@ -632,19 +655,6 @@ text(x = 1, y = 1.05, "Daytime", srt = 90,
 ```
 
 
-&nbsp;
-
-<!-- light green box -->
-
-<div class="alert alert-success">
-
-# Takeaways {.unnumbered .unlisted}
-
-
-
-</div>
-
-&nbsp;
 
 <!-- '---' adds a gray vertical line -->
 
